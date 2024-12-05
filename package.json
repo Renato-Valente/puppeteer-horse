@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "puppeteer": "^23.9.0"
+    "puppeteer": "^23.9.0",
+    "read-excel-file": "^5.8.6",
+    "unzipper": "^0.12.3",
+    "xlsx": "^0.18.5"
   }
 }

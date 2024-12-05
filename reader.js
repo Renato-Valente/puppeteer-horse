@@ -1,42 +1,17 @@
+//este script lê todos os links de arquivo links.txt, faz o download dos arquivos .xls
+//encontrados nos respectivos links e gera o arquivo result.json
+
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
-
-/* const readLink = async (link) => {
-    const browser = await puppeteer.launch({
-        headless: false
-    });
-
-    const page = await browser.newPage();
-    const downloadPath = path.resolve('./meus-downloads');
-    await page._client().send('Page.setDownloadBehavior', {
-    behavior: 'allow',
-    downloadPath: downloadPath
-  });
-    await page.goto(link);
-    console.log('started downloading');
-    await page.evaluate(() => {
-        nm_gp_move('xls', '1', 'grid');
-    })
-    await new Promise((resolve, reject) => {
-        const interval = setInterval(() => {
-            const files = fs.readdirSync(downloadPath);
-            const downloading = files.some((file) => file.endsWith('.crdownload'));
-
-            if(!downloading) {
-                console.log('finisehd downloading')
-                clearInterval(interval);
-                resolve();
-            }
-            //else{console.log('not finished yet')}
-        }, 1000)
-    });
-    await browser.close();
-
-} */
+const XLSX = require('xlsx');
 
 const links = fs.readFileSync('./links.txt', 'utf8').split('\n');
 console.log('links:', links);
+
+const repeatedNames = []; //Este array deve armazenar os nomes dos arquivos que já foram passados
+//para renameArray, evitando nomes repetidos
+const result = [];
 
 
 (async () => {
@@ -53,7 +28,17 @@ console.log('links:', links);
       const page = await browser.newPage();
       await new Promise(async (resolve) => {
         await page.goto(link);
-  
+        //print header information
+        const headerArray = await page.$$eval('.scGridHeaderFont', (data) => {
+            return data.map((item) => {
+                return item.textContent;
+            });
+        })
+        const header = headerArray.find((line) => {
+            return line.includes('PROVA') || line.includes('RESULTADO') || line.includes('HORA')
+        })
+        console.log('header: ', header);
+
         // Substitua pela função que inicia o download
         await page.evaluate(() => {
           nm_gp_move('xls', '1', 'grid');
@@ -71,7 +56,13 @@ console.log('links:', links);
           const downloading = files.some((file) => file.endsWith('.crdownload'));
   
           if (!downloading) {
-            console.log('finished downloading');
+            console.log('finished downloading:');
+            const name = fs.readdirSync(downloadPath).find((i) => {
+                return i.startsWith('sc_xls') && !repeatedNames.includes(i)
+            });
+            repeatedNames.push(name);
+            result.push({name, link, header})
+
             clearInterval(interval);
             browser.close();
             resolve();
@@ -80,7 +71,18 @@ console.log('links:', links);
       });
     }
   
+
+    //console.log('result: ', result);
     console.log('Todos os downloads concluídos.');
+    const finalResult = [];
+    for(const item of result){
+        const sheet = XLSX.readFile(`${downloadPath}/${item.name}`).Sheets['Consulta'];
+        const finalSheet = XLSX.utils.sheet_to_json(sheet);
+        finalResult.push({...item, sheet: finalSheet})
+    }
+    console.log(finalResult);
+
+    fs.writeFileSync('./result.json', JSON.stringify(finalResult, null, 2))
   })();
   
 
