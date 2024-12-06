@@ -1,3 +1,5 @@
+//Este script coleta todos os links disponiveis e os escreve no arquivo links.txt
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
